@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Escada LED</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f3;color:#1a1a18;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+.app{max-width:480px;margin:0 auto;padding:1rem 1rem 2.5rem}
+.header{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:.5px solid #d3d1c7}
+.hicon{width:36px;height:36px;border-radius:8px;background:#e8e6df;border:.5px solid #d3d1c7;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.htitle{font-size:15px;font-weight:500}.hsub{font-size:12px;color:#5f5e5a;margin-top:1px}
+.conn-bar{background:#e8e6df;border-radius:12px;border:.5px solid #d3d1c7;padding:10px 12px;margin-bottom:.75rem}
+.conn-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#888;flex-shrink:0;transition:background .3s}
+.dot.ok{background:#3B6D11}.dot.err{background:#A32D2D}.dot.wait{background:#BA7517}
+.clabel{font-size:13px;color:#5f5e5a;flex:1}
+.dev-select{width:100%;padding:7px 10px;border-radius:8px;border:.5px solid #b4b2a9;background:#fff;font-size:13px;font-family:inherit;color:#1a1a18;margin-bottom:8px;appearance:none}
+.conn-btns{display:flex;gap:6px}
+button{font-family:inherit;cursor:pointer;border-radius:8px;border:.5px solid #b4b2a9;background:transparent;color:#1a1a18;font-size:13px;padding:7px 14px;transition:background .15s,transform .1s;-webkit-appearance:none}
+button:active{transform:scale(0.97);background:#e8e6df}
+button.primary{background:#1a1a18;color:#fff;border-color:transparent}
+button.danger{background:#A32D2D;color:#fff;border-color:transparent}
+button.success{background:#3B6D11;color:#fff;border-color:transparent}
+button:disabled{opacity:.4;pointer-events:none}
+.slabel{font-size:10px;font-weight:500;color:#5f5e5a;letter-spacing:.07em;text-transform:uppercase;margin:0 2px 8px}
+.sys-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 10px;border-radius:20px;border:.5px solid #d3d1c7;background:#f1efe8;margin-bottom:.75rem}
+.sys-badge.ativo{background:#EAF3DE;border-color:#3B6D11;color:#27500A}
+.sys-dot{width:6px;height:6px;border-radius:50%;background:#888}
+.sys-badge.ativo .sys-dot{background:#3B6D11}
+.sensor-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem}
+.sensor-card{background:#fff;border-radius:12px;border:.5px solid #d3d1c7;padding:12px;transition:border-color .3s,background .3s}
+.sensor-card.active{background:#EAF3DE;border-color:#3B6D11}
+.sensor-card.active .sc-state{color:#3B6D11}
+.sc-title{font-size:11px;color:#5f5e5a;margin-bottom:3px}.sc-name{font-size:13px;font-weight:500;margin-bottom:2px}
+.sc-seq{font-size:10px;color:#888;margin-bottom:8px}.sc-state{font-size:12px;font-weight:500;color:#888;margin-bottom:8px;transition:color .3s}
+.sc-btn{width:100%;font-size:12px;padding:5px 8px}
+.led-section{background:#fff;border-radius:12px;border:.5px solid #d3d1c7;padding:12px;margin-bottom:1rem}
+.led-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.led-header-title{font-size:13px;font-weight:500}
+.led-pill{font-size:10px;padding:2px 8px;border-radius:20px;background:#f1efe8;color:#5f5e5a;border:.5px solid #d3d1c7;transition:background .3s}
+.led-pill.running{background:#FAEEDA;color:#633806;border-color:#BA7517}
+.led-pill.done{background:#EAF3DE;color:#27500A;border-color:#3B6D11}
+.led-grid{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.led-cell{width:calc(100%/8 - 4px);min-width:26px;height:26px;border-radius:5px;border:.5px solid #d3d1c7;background:#f1efe8;display:flex;align-items:center;justify-content:center;font-size:8px;color:#888;font-weight:500;transition:background 120ms,border-color 120ms,color 120ms,transform 80ms}
+@keyframes lp{0%{transform:scale(1)}50%{transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes lo{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+.led-cell.on{background:#FAEEDA;border-color:#BA7517;color:#633806}
+.led-cell.lit{background:#EF9F27;border-color:#BA7517;color:#fff;animation:lp 220ms ease}
+.led-cell.dim{background:#FAEEDA;border-color:#d3d1c7;color:#888;animation:lo 200ms ease}
+.led-actions{display:flex;gap:6px}.led-actions button{flex:1;font-size:12px;padding:5px 8px}
+.sum-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem}
+.sum-card{background:#fff;border-radius:10px;border:.5px solid #d3d1c7;padding:10px 12px}
+.sc-lb{font-size:11px;color:#5f5e5a;margin-bottom:4px}.sc-v{font-size:20px;font-weight:500}
+.cu{font-size:11px;color:#5f5e5a;margin-left:2px}
+.fg-card{background:#fff;border-radius:12px;border:.5px solid #d3d1c7;overflow:hidden;margin-bottom:1rem}
+.fg{padding:14px 16px;border-bottom:.5px solid #d3d1c7}
+.fg:last-child{border-bottom:none}
+.fg.dirty{background:#F0F6FF}.fg.synced{background:#F2FAF0}
+.fg-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
+.fg-left{flex:1;min-width:0}.fg-name{font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:2px;line-height:1.3}
+.fg-desc{font-size:11px;color:#5f5e5a;line-height:1.4}
+.fg-right{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:3px}
+.fg-valrow{display:flex;align-items:baseline;gap:2px}
+.fg-val{font-size:19px;font-weight:500;color:#1a1a18;line-height:1}
+.fg-unit{font-size:11px;color:#5f5e5a}
+.fg-badge{font-size:9px;padding:2px 6px;border-radius:20px;display:none;white-space:nowrap}
+.fg-badge.show{display:inline}.fg-badge.dirty{background:#E6F1FB;color:#185FA5}
+.fg-badge.ok{background:#EAF3DE;color:#27500A}.fg-badge.sending{background:#FAEEDA;color:#633806}
+input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:linear-gradient(to right,#1a1a18 var(--p,0%),#d3d1c7 var(--p,0%));border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#1a1a18;border:2.5px solid #fff;box-shadow:0 0 0 1px #b4b2a9;margin-top:-9px;transition:transform .1s}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15)}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px}
+.range-marks{display:flex;justify-content:space-between;margin-top:5px}
+.range-mark{font-size:10px;color:#888}
+.ldr-bar-wrap{height:4px;border-radius:2px;background:#e8e6df;margin-top:8px;overflow:hidden}
+.ldr-bar{height:100%;border-radius:2px;background:#378ADD;transition:width .5s}
+.ldr-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 7px;border-radius:6px;background:#E6F1FB;color:#185FA5;border:.5px solid #B5D4F4;margin-top:6px}
+.ldr-dot{width:5px;height:5px;border-radius:50%;background:#378ADD}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toggle-info{flex:1}.toggle-name{font-size:13px;font-weight:500;color:#1a1a18;margin-bottom:2px}
+.toggle-desc{font-size:11px;color:#5f5e5a}
+.sw{position:relative;width:40px;height:22px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-track{position:absolute;inset:0;background:#b4b2a9;border-radius:22px;cursor:pointer;transition:.25s}
+.sw-track:before{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;left:3px;top:3px;transition:.25s}
+.sw input:checked~.sw-track{background:#3B6D11}
+.sw input:checked~.sw-track:before{transform:translateX(18px)}
+.timer-fields{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.timer-row{display:flex;align-items:center;gap:10px}
+.timer-lbl{font-size:11px;color:#5f5e5a;min-width:70px}
+.time-sel{display:flex;align-items:center;gap:3px}
+.time-sel select{padding:5px 6px;border-radius:7px;border:.5px solid #b4b2a9;background:#f5f5f3;font-size:13px;font-family:inherit;color:#1a1a18;min-width:48px;text-align:center;appearance:none}
+.actions{display:flex;gap:8px;margin-bottom:1rem}.actions button{flex:1}
+.progress{height:3px;border-radius:2px;background:#d3d1c7;margin-bottom:1rem;overflow:hidden}
+.pbar{height:100%;width:0;background:#3B6D11;transition:width .3s}
+.log{background:#e8e6df;border-radius:8px;border:.5px solid #d3d1c7;padding:8px 10px;font-family:monospace;font-size:11px;color:#5f5e5a;max-height:90px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.le{line-height:1.5}.le.ok{color:#3B6D11}.le.err{color:#A32D2D}.le.tx{color:#1a1a18}.le.seq{color:#BA7517}.le.timer{color:#185FA5}
+code{font-size:10px;background:#e8e6df;padding:1px 3px;border-radius:3px;color:#5f5e5a}
+hr{border:none;border-top:.5px solid #d3d1c7;margin:.875rem 0}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="hicon">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <rect x="2" y="13" width="14" height="2" rx="1" fill="currentColor" opacity=".2"/>
+        <rect x="2" y="9.5" width="11" height="2" rx="1" fill="currentColor" opacity=".45"/>
+        <rect x="2" y="6" width="8" height="2" rx="1" fill="currentColor" opacity=".7"/>
+        <rect x="2" y="2.5" width="5" height="2" rx="1" fill="currentColor"/>
+      </svg>
+    </div>
+    <div><div class="htitle">Escada LED</div><div class="hsub">BLE-Nano (emakefun) — FFE0/FFE1</div></div>
+  </div>
+
+  <div class="conn-bar">
+    <div class="conn-row">
+      <div class="dot" id="dot"></div>
+      <span class="clabel" id="clabel">Desconectado</span>
+      <button id="btn-scan" onclick="startScan()" style="font-size:11px;padding:4px 8px">🔍 Procurar</button>
+    </div>
+    <select class="dev-select" id="dev-select"><option value="">Selecione BLE-Nano...</option></select>
+    <div class="conn-btns">
+      <button id="btn-connect" class="primary" style="flex:1" onclick="connectBLE()">Conectar</button>
+      <button id="btn-disconnect" disabled style="flex:1" onclick="disconnectBLE()">Desconectar</button>
+      <button id="btn-read" disabled style="flex:1;font-size:12px" onclick="readConfig()">Ler config</button>
+    </div>
+  </div>
+
+  <div class="sys-badge" id="sys-badge"><span class="sys-dot"></span><span id="sys-label">Sistema inativo</span></div>
+
+  <hr>
+
+  <div class="slabel">Status dos sensores</div>
+  <div class="sensor-grid">
+    <div class="sensor-card" id="sc1">
+      <div class="sc-title">Sensor 1 — Inferior</div><div class="sc-name">Sensor 1</div>
+      <div class="sc-seq">Normal (1 → N)</div><div class="sc-state" id="s1-state">Aguardando</div>
+      <button class="sc-btn" id="btn-s1" disabled onclick="trigSensor(1)">Disparar</button>
+    </div>
+    <div class="sensor-card" id="sc2">
+      <div class="sc-title">Sensor 2 — Superior</div><div class="sc-name">Sensor 2</div>
+      <div class="sc-seq">Reversa (N → 1)</div><div class="sc-state" id="s2-state">Aguardando</div>
+      <button class="sc-btn" id="btn-s2" disabled onclick="trigSensor(2)">Disparar</button>
+    </div>
+  </div>
+
+  <div class="led-section">
+    <div class="led-header"><span class="led-header-title">Status das saídas</span><span class="led-pill" id="led-pill">—</span></div>
+    <div class="led-grid" id="led-grid"></div>
+    <div class="led-actions">
+      <button id="btn-allon"  class="success" disabled onclick="btSend('ALL_ON')">Ligar todas</button>
+      <button id="btn-alloff" class="danger"  disabled onclick="btSend('ALL_OFF')">Desligar todas</button>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="slabel">Estado salvo no Arduino</div>
+  <div class="sum-cards">
+    <div class="sum-card"><div class="sc-lb">Registradores</div><div class="sc-v" id="d-reg">—</div></div>
+    <div class="sum-card"><div class="sc-lb">Total saídas</div><div class="sc-v"  id="d-total">—</div></div>
+    <div class="sum-card"><div class="sc-lb">Saídas usadas</div><div class="sc-v" id="d-saidas">—</div></div>
+    <div class="sum-card"><div class="sc-lb">Tempo pause</div><div class="sc-v"   id="d-tempo">—<span class="cu">ms</span></div></div>
+  </div>
+
+  <div class="slabel">Ajustes — sequência</div>
+  <div class="fg-card">
+    <div class="fg" id="p-reg"><div class="fg-header"><div class="fg-left"><div class="fg-name">Registradores <code>qtdRegistradores</code></div><div class="fg-desc">Shift registers 74HC595 encadeados</div></div><div class="fg-right"><span class="fg-val" id="v-reg">3</span><span class="fg-badge" id="b-reg"></span></div></div><input type="range" id="s-reg" min="1" max="8" step="1" value="3" style="--p:28.6%"><div class="range-marks"><span class="range-mark">1</span><span class="range-mark">8</span></div></div>
+    <div class="fg" id="p-saidas"><div class="fg-header"><div class="fg-left"><div class="fg-name">Saídas usadas <code>qtdSaidas</code></div><div class="fg-desc">Degraus iluminados (máx. totalSaidas)</div></div><div class="fg-right"><span class="fg-val" id="v-saidas">15</span><span class="fg-badge" id="b-saidas"></span></div></div><input type="range" id="s-saidas" min="1" max="24" step="1" value="15" style="--p:60.9%"><div class="range-marks"><span class="range-mark">1</span><span class="range-mark">24</span></div></div>
+    <div class="fg" id="p-tempo"><div class="fg-header"><div class="fg-left"><div class="fg-name">Tempo ligado <code>tempo</code></div><div class="fg-desc">Pausa com LEDs acesos antes de apagar</div></div><div class="fg-right"><div class="fg-valrow"><span class="fg-val" id="v-tempo">5000</span><span class="fg-unit">ms</span></div><span class="fg-badge" id="b-tempo"></span></div></div><input type="range" id="s-tempo" min="100" max="30000" step="100" value="5000" style="--p:16.4%"><div class="range-marks"><span class="range-mark">100ms</span><span class="range-mark">30s</span></div></div>
+    <div class="fg" id="p-fs"><div class="fg-header"><div class="fg-left"><div class="fg-name">Fade acender <code>fadeSaida</code></div><div class="fg-desc">Velocidade de acender — menor = mais rápido</div></div><div class="fg-right"><div class="fg-valrow"><span class="fg-val" id="v-fs">5</span><span class="fg-unit">ms</span></div><span class="fg-badge" id="b-fs"></span></div></div><input type="range" id="s-fs" min="1" max="50" step="1" value="5" style="--p:8.2%"><div class="range-marks"><span class="range-mark">1</span><span class="range-mark">50</span></div></div>
+    <div class="fg" id="p-fe"><div class="fg-header"><div class="fg-left"><div class="fg-name">Fade apagar <code>fadeEntrada</code></div><div class="fg-desc">Velocidade de apagar — menor = mais rápido</div></div><div class="fg-right"><div class="fg-valrow"><span class="fg-val" id="v-fe">15</span><span class="fg-unit">ms</span></div><span class="fg-badge" id="b-fe"></span></div></div><input type="range" id="s-fe" min="1" max="50" step="1" value="15" style="--p:28.6%"><div class="range-marks"><span class="range-mark">1</span><span class="range-mark">50</span></div></div>
+  </div>
+
+  <div class="slabel">Ajustes — sensores e brilho</div>
+  <div class="fg-card">
+    <div class="fg" id="p-ldr"><div class="fg-header"><div class="fg-left"><div class="fg-name">Sensibilidade LDR <code>ldrLimiar</code></div><div class="fg-desc">Limiar de noite. Abaixo = sistema ativo.</div><div class="ldr-tag"><span class="ldr-dot"></span>ao vivo: <strong id="ldr-live" style="font-weight:500;margin-left:2px">—</strong></div></div><div class="fg-right"><span class="fg-val" id="v-ldr">10</span><span class="fg-badge" id="b-ldr"></span></div></div><input type="range" id="s-ldr" min="0" max="1023" step="1" value="10" style="--p:1%"><div class="range-marks"><span class="range-mark">0 (escuro)</span><span class="range-mark">1023 (claro)</span></div><div class="ldr-bar-wrap"><div class="ldr-bar" id="ldr-bar" style="width:0%"></div></div></div>
+    <div class="fg" id="p-dist"><div class="fg-header"><div class="fg-left"><div class="fg-name">Distância ativação <code>distCm</code></div><div class="fg-desc">Distância máxima dos sensores ultrassônicos</div></div><div class="fg-right"><div class="fg-valrow"><span class="fg-val" id="v-dist">50</span><span class="fg-unit">cm</span></div><span class="fg-badge" id="b-dist"></span></div></div><input type="range" id="s-dist" min="10" max="200" step="5" value="50" style="--p:21.1%"><div class="range-marks"><span class="range-mark">10cm</span><span class="range-mark">200cm</span></div></div>
+    <div class="fg" id="p-brilho"><div class="fg-header"><div class="fg-left"><div class="fg-name">Brilho máximo <code>brilhoMax</code></div><div class="fg-desc">Intensidade máxima dos LEDs (PWM 10–255)</div></div><div class="fg-right"><span class="fg-val" id="v-brilho">100</span><span class="fg-badge" id="b-brilho"></span></div></div><input type="range" id="s-brilho" min="10" max="255" step="5" value="100" style="--p:37%"><div class="range-marks"><span class="range-mark">10 (fraco)</span><span class="range-mark">255 (máximo)</span></div></div>
+  </div>
+
+  <div class="slabel">Modo de operação</div>
+  <div class="fg-card">
+    <div class="fg" id="p-noturno">
+      <div class="toggle-row"><div class="toggle-info"><div class="toggle-name">Modo noturno sempre ativo</div><div class="toggle-desc" id="noturno-sub">Responde ao LDR automaticamente</div></div><label class="sw"><input type="checkbox" id="toggle-noturno" onchange="onToggleNoturno(this.checked)"><span class="sw-track"></span></label></div>
+    </div>
+    <div class="fg" id="p-timer">
+      <div class="toggle-row"><div class="toggle-info"><div class="toggle-name">Temporizador automático</div><div class="toggle-desc" id="timer-sub">Desativado</div></div><label class="sw"><input type="checkbox" id="toggle-timer" onchange="onToggleTimer(this.checked)"><span class="sw-track"></span></label></div>
+      <div class="timer-fields">
+        <div class="timer-row"><span class="timer-lbl">Ligar às</span><div class="time-sel"><select id="ton-h"></select>:<select id="ton-m"></select></div></div>
+        <div class="timer-row"><span class="timer-lbl">Desligar às</span><div class="time-sel"><select id="toff-h"></select>:<select id="toff-m"></select></div></div>
+        <div class="timer-row"><span class="timer-lbl">Hora atual</span><div class="time-sel"><select id="hora-h"></select>:<select id="hora-m"></select></div><button id="btn-hora" disabled onclick="sincronizarHora()" style="font-size:11px;padding:4px 8px;margin-left:4px">Sincronizar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="btn-send" class="primary" disabled onclick="sendDirty()">Enviar configuração ↗</button>
+    <button id="btn-discard" disabled onclick="discardChanges()">Descartar</button>
+  </div>
+  <div class="progress"><div class="pbar" id="pbar"></div></div>
+
+  <div class="slabel">Log</div>
+  <div class="log" id="log"><div class="le">Aguardando conexão BLE-Nano...</div></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let base={},sending=false,animPhase='idle',ledState=[];
+let currentQtdSaidas=15,currentFadeSaida=5,currentFadeEntrada=15;
+let timerDirty=false,noturnoChanged=false;
+const ackResolvers=new Map();
+
+function fillSel(id,max){const s=$(id);for(let i=0;i<max;i++){const o=document.createElement('option');o.value=i;o.textContent=String(i).padStart(2,'0');s.appendChild(o);}}
+['ton-h','toff-h','hora-h'].forEach(id=>fillSel(id,24));
+['ton-m','toff-m','hora-m'].forEach(id=>fillSel(id,60));
+(()=>{const n=new Date();$('hora-h').value=n.getHours();$('hora-m').value=n.getMinutes();})();
+['ton-h','ton-m','toff-h','toff-m'].forEach(id=>$(id).addEventListener('change',()=>{timerDirty=true;checkSend();}));
+
+const fields=[
+  {sid:'s-reg',    vid:'v-reg',    bid:'b-reg',    pid:'p-reg',    cmd:'SET_REG',    key:'reg',       min:1,   max:8},
+  {sid:'s-saidas', vid:'v-saidas', bid:'b-saidas',  pid:'p-saidas', cmd:'SET_SAIDAS', key:'saidas',    min:1,   max:24},
+  {sid:'s-tempo',  vid:'v-tempo',  bid:'b-tempo',   pid:'p-tempo',  cmd:'SET_TEMPO',  key:'tempo',     min:100, max:30000},
+  {sid:'s-fs',     vid:'v-fs',     bid:'b-fs',      pid:'p-fs',     cmd:'SET_FADE_S', key:'fs',        min:1,   max:50},
+  {sid:'s-fe',     vid:'v-fe',     bid:'b-fe',      pid:'p-fe',     cmd:'SET_FADE_E', key:'fe',        min:1,   max:50},
+  {sid:'s-ldr',    vid:'v-ldr',    bid:'b-ldr',     pid:'p-ldr',    cmd:'SET_LDR',    key:'ldrLimiar', min:0,   max:1023},
+  {sid:'s-dist',   vid:'v-dist',   bid:'b-dist',    pid:'p-dist',   cmd:'SET_DIST',   key:'distCm',    min:10,  max:200},
+  {sid:'s-brilho', vid:'v-brilho', bid:'b-brilho',  pid:'p-brilho', cmd:'SET_BRILHO', key:'brilhoMax', min:10,  max:255},
+];
+
+function pct(v,f){return((v-f.min)/(f.max-f.min)*100).toFixed(1)+'%';}
+fields.forEach(f=>{$(f.sid).addEventListener('input',()=>{const v=$(f.sid).value;$(f.vid).textContent=v;$(f.sid).style.setProperty('--p',pct(v,f));markDirty(f);});});
+
+function checkSend(){
+  const conn=window.AndroidBT&&window.AndroidBT.isConnected();
+  const dirty=fields.some(f=>base[f.key]!==undefined&&parseInt($(f.sid).value)!==base[f.key]);
+  $('btn-send').disabled=(!dirty&&!timerDirty&&!noturnoChanged)||sending||!conn;
+  $('btn-discard').disabled=(!dirty&&!timerDirty&&!noturnoChanged)||sending;
+}
+function markDirty(f){
+  const dirty=base[f.key]!==undefined&&parseInt($(f.sid).value)!==base[f.key];
+  $(f.pid).className='fg'+(dirty?' dirty':'');
+  const b=$(f.bid);
+  if(dirty){b.textContent='alterado';b.className='fg-badge show dirty';}else{b.textContent='';b.className='fg-badge';}
+  checkSend();
+}
+function onToggleNoturno(v){noturnoChanged=base.modoNoturno!==undefined&&v!==base.modoNoturno;$('noturno-sub').textContent=v?'Sempre ativo (ignora LDR e timer)':'Responde ao LDR automaticamente';checkSend();}
+function onToggleTimer(v){$('timer-sub').textContent=v?'Liga/desliga no horário configurado':'Desativado';timerDirty=true;checkSend();}
+
+// ── BLE Bridge ────────────────────────────────────────────────
+// ── Scan BLE real ─────────────────────────────────────────────
+const _seenAddrs = new Set();
+
+function startScan(){
+  if(!window.AndroidBT){addLog('Bridge não disponível — rode o APK','err');return;}
+  _seenAddrs.clear();
+  const sel=$('dev-select');
+  sel.innerHTML='<option value="">Procurando BLE-Nano...</option>';
+  $('btn-scan').disabled=true;
+  $('btn-scan').textContent='⏳ Procurando...';
+  addLog('Iniciando scan BLE (10s)...','');
+  window.AndroidBT.startScan();
+}
+
+// chamado pelo BluetoothBridge a cada dispositivo encontrado
+window.btOnScanResult = function(json){
+  try{
+    const d = typeof json==='string' ? JSON.parse(json) : json;
+    if(!d.address||_seenAddrs.has(d.address))return;
+    _seenAddrs.add(d.address);
+    const sel=$('dev-select');
+    // remove placeholder se ainda estiver lá
+    if(sel.options[0]&&!sel.options[0].value) sel.remove(0);
+    const o=document.createElement('option');
+    o.value=d.address;
+    const rssi=d.rssi&&d.rssi!==-999?' ('+d.rssi+'dBm)':'';
+    o.textContent=(d.name||'BLE Device')+' — '+d.address+rssi;
+    const isBleNano=(d.name||'').toUpperCase().match(/BLE|NANO|EMAKEFUN|CC2540|MLT/);
+    if(isBleNano){o.selected=true;o.style.fontWeight='bold';}
+    sel.appendChild(o);
+    addLog('Encontrado: '+(d.name||'?')+' '+d.address+(d.rssi&&d.rssi!==-999?' '+d.rssi+'dBm':''),'ok');
+  }catch(e){}
+};
+
+// chamado quando o scan de 10s encerra
+window.btOnScanDone = function(){
+  $('btn-scan').disabled=false;
+  $('btn-scan').textContent='🔍 Procurar';
+  const total=_seenAddrs.size;
+  if(total===0){
+    $('dev-select').innerHTML='<option value="">Nenhum BLE encontrado</option>';
+    addLog('Nenhum dispositivo BLE encontrado — verifique se o BLE-Nano está ligado','err');
+  } else {
+    addLog(total+' dispositivos encontrados — selecione o BLE-Nano','ok');
+  }
+};
+
+function refreshDevices(){startScan();}
+
+function connectBLE(){
+  const addr=$('dev-select').value;
+  if(!addr){addLog('Selecione um dispositivo','err');return;}
+  if(!window.AndroidBT){addLog('Execute o APK no Android','err');return;}
+  $('dot').className='dot wait';$('clabel').textContent='Conectando BLE...';
+  addLog('Conectando a '+addr+'...','');
+  window.AndroidBT.connect(addr);
+}
+function disconnectBLE(){
+  if(window.AndroidBT)window.AndroidBT.disconnect();
+  setConnected(false);addLog('Desconectado');
+}
+
+// callbacks da bridge Java
+window.btOnConnect=function(){
+  setConnected(true);addLog('BLE-Nano conectado!','ok');
+  autoLoadConfig();
+};
+window.btOnDisconnect=function(){setConnected(false);addLog('Conexão perdida','err');};
+window.btOnError=function(msg){$('dot').className='dot err';$('clabel').textContent='Erro';addLog('BLE erro: '+msg,'err');};
+window.btOnData=function(line){dispatchLine(line.trim());};
+
+// Carrega config automaticamente com retry (até 4 tentativas)
+async function autoLoadConfig(){
+  base={};
+  for(let t=1;t<=4;t++){
+    await new Promise(r=>setTimeout(r,t===1?1200:2000));
+    if(!window.AndroidBT||!window.AndroidBT.isConnected())return;
+    if(Object.keys(base).length>0)return;
+    addLog(t===1?'Carregando configuração...':'Tentativa '+t+'/4...','');
+    btSend('GET_CFG');
+    await new Promise(r=>setTimeout(r,2000));
+    if(Object.keys(base).length>0)return;
+  }
+  if(Object.keys(base).length===0)
+    addLog('Config não recebida — toque em Ler config','err');
+}
+
+function btSend(cmd){
+  if(!window.AndroidBT||!window.AndroidBT.isConnected()){addLog('Não conectado','err');return false;}
+  window.AndroidBT.send(cmd);addLog('→ '+cmd,'tx');return true;
+}
+function waitForAck(cmd,ms){return new Promise(r=>{const k='ACK:'+cmd,t=setTimeout(()=>{ackResolvers.delete(k);r(false);},ms);ackResolvers.set(k,()=>{clearTimeout(t);r(true);});});}
+
+function setConnected(ok){
+  $('dot').className='dot '+(ok?'ok':'err');$('clabel').textContent=ok?'Conectado':'Desconectado';
+  ['btn-read','btn-disconnect','btn-s1','btn-s2','btn-allon','btn-alloff','btn-hora'].forEach(id=>$(id).disabled=!ok);
+  $('btn-connect').disabled=ok;
+}
+
+function parseConfig(line){
+  const p=line.replace('CFG:','').split(',');if(p.length<15)return;
+  const [reg,total,saidas,tempo,fs,fe,ldrL,dist,brilho,noturno,tonH,tonM,toffH,toffM,tAtivo]=p.map(Number);
+  $('d-reg').textContent=reg;$('d-total').textContent=total;$('d-saidas').textContent=saidas;
+  $('d-tempo').innerHTML=tempo+'<span class="cu">ms</span>';
+  base={reg,saidas,tempo,fs,fe,ldrLimiar:ldrL,distCm:dist,brilhoMax:brilho,modoNoturno:!!noturno,timerAtivo:!!tAtivo,timerOnH:tonH,timerOnM:tonM,timerOffH:toffH,timerOffM:toffM};
+  const vals={reg,saidas,tempo,fs,fe,ldrLimiar:ldrL,distCm:dist,brilhoMax:brilho};
+  fields.forEach(f=>{if(vals[f.key]!==undefined){$(f.sid).value=vals[f.key];$(f.vid).textContent=vals[f.key];$(f.sid).style.setProperty('--p',pct(vals[f.key],f));}$(f.pid).className='fg';$(f.bid).className='fg-badge';});
+  $('toggle-noturno').checked=!!noturno;$('noturno-sub').textContent=noturno?'Sempre ativo (ignora LDR e timer)':'Responde ao LDR automaticamente';
+  $('toggle-timer').checked=!!tAtivo;$('timer-sub').textContent=tAtivo?'Liga/desliga no horário configurado':'Desativado';
+  $('ton-h').value=tonH;$('ton-m').value=tonM;$('toff-h').value=toffH;$('toff-m').value=toffM;
+  currentFadeSaida=fs;currentFadeEntrada=fe;
+  if(saidas!==currentQtdSaidas)buildLedGrid(saidas);
+  timerDirty=false;noturnoChanged=false;$('btn-send').disabled=true;$('btn-discard').disabled=true;
+  addLog('Config: saidas='+saidas+' ldr='+ldrL+' dist='+dist+'cm brilho='+brilho,'ok');
+  setTimeout(()=>btSend('GET_STATUS'),100);
+}
+
+function parseStatus(line){
+  const p=line.replace('STATUS:','').split(',');if(p.length<4)return;
+  const s1=p[0]==='1',s2=p[1]==='1',leds=p[2].split(''),ldrVal=parseInt(p[3]),ativo=p[4]==='1';
+  $('sc1').className='sensor-card'+(s1?' active':'');$('sc2').className='sensor-card'+(s2?' active':'');
+  $('s1-state').textContent=s1?'Sequenciando':'Aguardando';$('s2-state').textContent=s2?'Sequenciando':'Aguardando';
+  $('ldr-live').textContent=ldrVal;$('ldr-bar').style.width=Math.round(ldrVal/10.23)+'%';
+  const b=$('sys-badge');b.className='sys-badge'+(ativo?' ativo':'');$('sys-label').textContent=ativo?'Sistema ativo':'Sistema inativo';
+  if(animPhase==='idle')applyStatusLeds(leds);
+}
+
+function dispatchLine(line){
+  const cls=line.startsWith('ERR')?'err':line.startsWith('CFG')||line.startsWith('ACK')||line==='BOOT_OK'?'ok':line.startsWith('SEQ')||line.startsWith('TIMER')?'seq':'';
+  addLog('← '+line,cls);
+  if(line.startsWith('ACK:')){const r=ackResolvers.get(line);if(r){ackResolvers.delete(line);r();}}
+  if(line.startsWith('CFG:'))parseConfig(line);
+  if(line.startsWith('STATUS:'))parseStatus(line);
+  if(line==='SEQ:S1_START'){$('sc1').className='sensor-card active';$('s1-state').textContent='Sequenciando';animateSequence(1,currentQtdSaidas,currentFadeSaida,currentFadeEntrada,base.tempo||5000);}
+  if(line==='SEQ:S2_START'){$('sc2').className='sensor-card active';$('s2-state').textContent='Sequenciando';animateSequence(-1,currentQtdSaidas,currentFadeSaida,currentFadeEntrada,base.tempo||5000);}
+  if(line==='SEQ:S1_END'||line==='SEQ:S2_END'){$('sc1').className='sensor-card';$('sc2').className='sensor-card';$('s1-state').textContent='Aguardando';$('s2-state').textContent='Aguardando';setTimeout(()=>btSend('GET_STATUS'),300);}
+  if(line==='TIMER:ON')addLog('Temporizador: LIGADO','timer');
+  if(line==='TIMER:OFF')addLog('Temporizador: DESLIGADO','timer');
+}
+
+function addLog(msg,cls=''){
+  const log=$('log'),e=document.createElement('div');e.className='le'+(cls?' '+cls:'');
+  const t=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  e.textContent='['+t+'] '+msg;log.appendChild(e);
+  if(log.children.length>80)log.removeChild(log.firstChild);log.scrollTop=log.scrollHeight;
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function stepMs(ms){return Math.max(30,ms*60);}
+async function animateSequence(dir,qtd,fadeS,fadeE,pauseMs){
+  animPhase='on';setPill('running',dir===1?'Acendendo 1→'+qtd:'Acendendo '+qtd+'→1');
+  for(let i=0;i<qtd;i++)setCell(i,'off');
+  const order=dir===1?Array.from({length:qtd},(_,i)=>i):Array.from({length:qtd},(_,i)=>qtd-1-i);
+  for(const i of order){setCell(i,'lit');await delay(stepMs(fadeS));setCell(i,'on');}
+  animPhase='pause';setPill('running','Aguardando…');await delay(pauseMs);
+  animPhase='off';setPill('running',dir===1?'Apagando 1→'+qtd:'Apagando '+qtd+'→1');
+  for(const i of order){setCell(i,'dim');await delay(stepMs(fadeE));setCell(i,'off');}
+  animPhase='idle';setPill('done','Concluído');setTimeout(()=>setPill('','—'),3000);
+}
+function setCell(i,s){const c=$('led-'+i);if(!c)return;c.className='led-cell '+(s==='off'?'off':s);ledState[i]=(s==='on'||s==='lit')?1:0;}
+function setPill(cls,t){const p=$('led-pill');p.className='led-pill'+(cls?' '+cls:'');p.textContent=t;}
+function buildLedGrid(n){currentQtdSaidas=n;ledState=new Array(n).fill(0);const g=$('led-grid');g.innerHTML='';for(let i=0;i<n;i++){const d=document.createElement('div');d.className='led-cell off';d.id='led-'+i;d.textContent=i+1;g.appendChild(d);}setPill('','—/'+n+' acesas');}
+function applyStatusLeds(leds){leds.forEach((v,i)=>{const c=$('led-'+i);if(c)c.className='led-cell '+(v==='1'?'on':'off');ledState[i]=v==='1'?1:0;});}
+
+async function sendDirty(){
+  if(sending)return;sending=true;$('btn-send').disabled=true;$('btn-discard').disabled=true;
+  const dirty=fields.filter(f=>base[f.key]!==undefined&&parseInt($(f.sid).value)!==base[f.key]);
+  if(noturnoChanged)dirty.push({cmd:'SET_NOTURNO',val:$('toggle-noturno').checked?'1':'0',key:'modoNoturno',pid:'p-noturno',bid:'',sid:'',min:0,max:1});
+  if(timerDirty){dirty.push({cmd:'SET_TIMER_ATIVO',val:$('toggle-timer').checked?'1':'0',key:'',pid:'',bid:'',sid:'',min:0,max:1});dirty.push({cmd:'SET_TIMER_ON',val:String($('ton-h').value).padStart(2,'0')+':'+String($('ton-m').value).padStart(2,'0'),key:'',pid:'',bid:'',sid:'',min:0,max:0});dirty.push({cmd:'SET_TIMER_OFF',val:String($('toff-h').value).padStart(2,'0')+':'+String($('toff-m').value).padStart(2,'0'),key:'',pid:'',bid:'',sid:'',min:0,max:0});}
+  const total=dirty.length;let done=0;
+  for(const f of dirty){
+    const val=f.val!==undefined?f.val:$(f.sid).value;
+    if(f.bid&&$(f.bid)){const b=$(f.bid);b.textContent='enviando';b.className='fg-badge show sending';}
+    if(f.pid&&$(f.pid))$(f.pid).className='fg dirty';
+    btSend(f.cmd+':'+val);
+    const ok=await waitForAck(f.cmd,5000);
+    done++;$('pbar').style.width=Math.round(done/total*100)+'%';
+    if(ok){if(f.pid&&$(f.pid))$(f.pid).className='fg synced';if(f.bid&&$(f.bid)){const b=$(f.bid);b.textContent='salvo';b.className='fg-badge show ok';setTimeout(()=>{if(f.pid&&$(f.pid))$(f.pid).className='fg';b.className='fg-badge';},2000);}}
+    else{addLog('Sem ACK: '+f.cmd,'err');if(f.pid&&$(f.pid))$(f.pid).className='fg dirty';}
+    await new Promise(r=>setTimeout(r,80)); // pausa entre comandos BLE
+  }
+  btSend('GET_CFG');setTimeout(()=>{$('pbar').style.width='0';},1500);
+  sending=false;timerDirty=false;noturnoChanged=false;checkSend();
+}
+
+function discardChanges(){
+  fields.forEach(f=>{if(base[f.key]===undefined)return;$(f.sid).value=base[f.key];$(f.vid).textContent=base[f.key];$(f.sid).style.setProperty('--p',pct(base[f.key],f));$(f.pid).className='fg';$(f.bid).className='fg-badge';});
+  if(base.modoNoturno!==undefined){$('toggle-noturno').checked=base.modoNoturno;$('noturno-sub').textContent=base.modoNoturno?'Sempre ativo (ignora LDR e timer)':'Responde ao LDR automaticamente';}
+  if(base.timerAtivo!==undefined){$('toggle-timer').checked=base.timerAtivo;$('timer-sub').textContent=base.timerAtivo?'Liga/desliga no horário configurado':'Desativado';}
+  if(base.timerOnH!==undefined){$('ton-h').value=base.timerOnH;$('ton-m').value=base.timerOnM;}
+  if(base.timerOffH!==undefined){$('toff-h').value=base.timerOffH;$('toff-m').value=base.timerOffM;}
+  timerDirty=false;noturnoChanged=false;$('btn-send').disabled=true;$('btn-discard').disabled=true;
+}
+
+function readConfig(){btSend('GET_CFG');setTimeout(()=>btSend('GET_STATUS'),300);}
+async function trigSensor(n){const cmd='TRIG_S'+n;btSend(cmd);const ok=await waitForAck(cmd,2000);if(!ok)addLog('Sensor '+n+' sem resposta','err');}
+async function sincronizarHora(){const h=String($('hora-h').value).padStart(2,'0'),m=String($('hora-m').value).padStart(2,'0');btSend('SET_HORA:'+h+':'+m);addLog('Hora: '+h+':'+m,'ok');}
+
+setInterval(()=>{if(window.AndroidBT&&window.AndroidBT.isConnected()&&animPhase==='idle')btSend('GET_STATUS');},5000);
+buildLedGrid(15);
+window.addEventListener('load',()=>setTimeout(refreshDevices,600));
+</script>
+</body>
+</html>
