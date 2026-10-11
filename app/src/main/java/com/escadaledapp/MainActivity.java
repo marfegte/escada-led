@@ -47,19 +47,25 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         setupWebView();
 
-        BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter adapter = bm != null ? bm.getAdapter() : null;
+        try {
+            BluetoothManager bm = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+            BluetoothAdapter adapter = bm != null ? bm.getAdapter() : null;
 
-        if (adapter == null) {
-            Toast.makeText(this, "Bluetooth não disponível neste dispositivo", Toast.LENGTH_LONG).show();
+            if (adapter == null) {
+                Toast.makeText(this, "Bluetooth não disponível neste dispositivo", Toast.LENGTH_LONG).show();
+                loadApp();
+                return;
+            }
+
+            if (!adapter.isEnabled()) {
+                enableBtLauncher.launch(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
+            } else {
+                requestBluetoothPermissions();
+            }
+        } catch (Exception e) {
+            // se qualquer coisa falhar na init do BT, carrega o app mesmo assim
+            Toast.makeText(this, "Aviso BT: " + e.getMessage(), Toast.LENGTH_LONG).show();
             loadApp();
-            return;
-        }
-
-        if (!adapter.isEnabled()) {
-            enableBtLauncher.launch(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-        } else {
-            requestBluetoothPermissions();
         }
     }
 
@@ -69,10 +75,39 @@ public class MainActivity extends AppCompatActivity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(true);
+        s.setAllowContentAccess(true);
+        // Android 16: garante que file:// pode carregar assets
+        s.setAllowFileAccessFromFileURLs(true);
+        s.setAllowUniversalAccessFromFileURLs(true);
 
         btBridge = new BluetoothBridge(this, webView);
         webView.addJavascriptInterface(btBridge, "AndroidBT");
-        webView.setWebViewClient(new WebViewClient());
+
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(android.webkit.WebView view, String url) {
+                super.onPageFinished(view, url);
+                // injeta versão e confirma que o WebView carregou
+                view.evaluateJavascript(
+                    "document.title = document.title + ' — Android OK';", null);
+            }
+
+            @Override
+            public void onReceivedError(android.webkit.WebView view,
+                    android.webkit.WebResourceRequest request,
+                    android.webkit.WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                String msg = "Erro WebView: " + error.getDescription()
+                           + " (" + error.getErrorCode() + ")\n" + request.getUrl();
+                // mostra o erro na tela como alerta
+                runOnUiThread(() ->
+                    new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Erro ao carregar app")
+                        .setMessage(msg)
+                        .setPositiveButton("OK", null)
+                        .show());
+            }
+        });
     }
 
     // ── Permissões ────────────────────────────────────────────
