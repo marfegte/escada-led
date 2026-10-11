@@ -27,8 +27,17 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // força versão única do kotlin-stdlib para evitar duplicatas
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+    }
+}
+
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.core:core:1.12.0'
     implementation 'androidx.annotation:annotation:1.7.0'
+    // removido androidx.core:core:1.12.0 — já vem transitivamente pelo appcompat
 }
